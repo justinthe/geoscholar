@@ -1,0 +1,14 @@
+# GeoScholar
+
+A local retrieval-augmented generation (RAG) assistant for remote sensing research papers.
+
+## Status
+Week 1: naive RAG from scratch (NumPy search + local LLM via Ollama) over ~50 arXiv abstracts.
+See `notebooks/01_naive_rag.ipynb`.
+
+## Roadmap
+- [x] Naive RAG baseline
+- [ ] Full-text ingestion + vector database
+- [ ] Hybrid search + reranking, with evaluation
+- [ ] Grounded answers with citations + answer evaluation
+- [ ] API, UI and Docker packaging
