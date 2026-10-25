@@ -1,0 +1,17 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./qdrant_storage:/qdrant/storage    # vectors survive container restarts
+    restart: unless-stopped
+
+  grobid:
+    image: grobid/grobid:0.9.1-crf          # lightweight CPU-only image
+    ports:
+      - "8070:8070"
+    init: true
+    ulimits:
+      core: 0
+    restart: unless-stopped
