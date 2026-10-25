@@ -48,3 +48,13 @@ COLLECTION = f"papers_c{CHUNK_TOKENS}"
 RERANK_MODEL = "BAAI/bge-reranker-base"
 CANDIDATES = 30                     # how many chunks each retriever passes to fusion / reranking
 RRF_K = 60                          # standard constant in reciprocal rank fusion
+
+
+# Answering (set the first three from your week 3 decision in docs/decisions.md)
+RETRIEVAL_MODE = "hybrid"           # "dense", "bm25" or "hybrid"
+USE_RERANK = True
+TOP_K = 5                           # passages given to the LLM
+CONTEXT_ORDER = "relevance"         # "relevance" or "sandwich"
+MAX_CONTEXT_TOKENS = 3000           # rough budget for all passages together
+LLM_NUM_CTX = 8192                  # Ollama context window; too small silently cuts the prompt
+JUDGE_MODEL = os.environ.get("GEOSCHOLAR_JUDGE", LLM_MODEL)

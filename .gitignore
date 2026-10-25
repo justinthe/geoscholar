@@ -8,3 +8,5 @@ qdrant_storage/
 logs/
 *.egg-info/
 eval/questions_draft.jsonl
+eval/results/answers_*.jsonl
+eval/results/judged_*.jsonl

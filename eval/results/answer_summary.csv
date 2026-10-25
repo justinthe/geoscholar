@@ -1,0 +1,6 @@
+run_at,tag,judge,mode,rerank,k,order,llm,gpu_mb_models_loaded,n_answerable,n_unanswerable,retrieval_hit_rate,refusal_rate_unanswerable,false_refusal_rate,answered_without_evidence,n_claims,faithfulness,partial_rate,citation_coverage,invalid_citation_rate,cites_relevant,relevance_full,p50_total_ms,p50_generate_ms,p50_retrieve_rerank_ms,mean_prompt_tokens,mean_tokens_per_s
+2026-10-25 19:51,baseline,llama3.1:8b,hybrid,True,5,relevance,llama3.1:8b,10814,91,8,1.0,1.0,0.011,nan,262,0.8855,0.0611,0.8015,0.0111,0.9778,0.7778,4453.8,4069.3,425.9,1454.5556,27.7545
+2026-10-25 20:02,baseline_qwen,qwen2.5:7b-instruct,hybrid,True,5,relevance,llama3.1:8b,10814,91,8,1.0,1.0,0.011,nan,262,0.855,0.0725,0.8015,0.0111,0.9778,0.6,4453.8,4069.3,425.9,1454.5556,27.7545
+2026-10-25 20:31,k3,llama3.1:8b,hybrid,True,3,relevance,llama3.1:8b,10802,91,8,0.956,1.0,0.023,0.5,313,0.8882,0.0575,0.7891,0.0115,1.0,0.8046,4490.3,4082.9,409.7,942.0808,29.3818
+2026-10-25 20:49,k8,llama3.1:8b,hybrid,True,8,relevance,llama3.1:8b,10743,91,8,1.0,1.0,0.022,nan,235,0.9064,0.034,0.8,0.0112,0.9775,0.764,5205.9,4761.8,418.2,2211.7778,26.0758
+2026-10-25 21:13,sandwich,llama3.1:8b,hybrid,True,5,sandwich,llama3.1:8b,10796,91,8,1.0,1.0,0.022,nan,258,0.8953,0.0426,0.8178,0.0112,1.0,0.7753,4774.6,4340.9,428.3,1454.5556,26.9808

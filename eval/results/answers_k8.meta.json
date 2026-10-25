@@ -1,0 +1,18 @@
+{
+  "tag": "k8",
+  "collection": "papers_c300",
+  "mode": "hybrid",
+  "rerank": true,
+  "k": 8,
+  "order": "relevance",
+  "llm": "llama3.1:8b",
+  "num_ctx": 8192,
+  "gpu_mb_before_warmup": [
+    10347,
+    12288
+  ],
+  "gpu_mb_models_loaded": [
+    10743,
+    12288
+  ]
+}

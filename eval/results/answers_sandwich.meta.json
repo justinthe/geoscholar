@@ -1,0 +1,18 @@
+{
+  "tag": "sandwich",
+  "collection": "papers_c300",
+  "mode": "hybrid",
+  "rerank": true,
+  "k": 5,
+  "order": "sandwich",
+  "llm": "llama3.1:8b",
+  "num_ctx": 8192,
+  "gpu_mb_before_warmup": [
+    6417,
+    12288
+  ],
+  "gpu_mb_models_loaded": [
+    10796,
+    12288
+  ]
+}

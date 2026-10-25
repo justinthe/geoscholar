@@ -21,3 +21,6 @@
 {"id": "u03", "question": "What accuracy does kelp forest canopy mapping from satellite imagery achieve?", "paper_ids": [], "type": "unanswerable"}
 {"id": "u04", "question": "How is desert locust swarm breeding habitat predicted from satellite data?", "paper_ids": [], "type": "unanswerable"}
 {"id": "u05", "question": "How are PM2.5 concentrations estimated from satellite aerosol optical depth?", "paper_ids": [], "type": "unanswerable"}
+{"id": "u06", "question": "What are the ingredients of a classic margherita pizza?", "paper_ids": [], "type": "unanswerable", "tags": ["off-topic"]}
+{"id": "u07", "question": "How is coral reef bleaching detected from satellite imagery?", "paper_ids": [], "type": "unanswerable", "tags": ["in-domain"]}
+{"id": "u08", "question": "What F1-score did the 8-qubit QCNN reach on the SEVIRI Ash RGB volcanic cloud images?", "paper_ids": [], "type": "unanswerable", "tags": ["false-premise"]}
