@@ -1,0 +1,23 @@
+{"id": "m01", "question": "Which SWIR band configuration gives the strongest active fire segmentation results on the Land8Fire dataset?", "paper_ids": ["2609.01392"], "type": "manual", "tags": ["exact-term"]}
+{"id": "m02", "question": "What F1-scores did the 2-qubit and 4-qubit QCNN models reach when classifying SEVIRI Ash RGB images for volcanic cloud detection?", "paper_ids": ["2608.00072"], "type": "manual", "tags": ["exact-term"]}
+{"id": "m03", "question": "How many modalities and which two spatial scales does the SomBench corpus cover?", "paper_ids": ["2609.13283"], "type": "manual", "tags": ["exact-term"]}
+{"id": "m04", "question": "Which segmentation models were compared for calving front delineation on the CaFFe dataset?", "paper_ids": ["2610.04066"], "type": "manual", "tags": ["exact-term"]}
+{"id": "m05", "question": "Which studies use hyperspectral data from the EMIT imaging spectrometer?", "paper_ids": ["2609.04906", "2609.35410"], "type": "manual", "tags": ["exact-term"]}
+{"id": "m06", "question": "How many scenario-driven tasks does the TerraLogic benchmark comprise?", "paper_ids": ["2607.12497"], "type": "manual", "tags": ["exact-term"]}
+{"id": "m07", "question": "Which studies insert a variational quantum circuit into a classical neural network for satellite image analysis?", "paper_ids": ["2608.00072", "2607.14160", "2608.30633"], "type": "manual", "tags": ["exact-term"]}
+{"id": "m08", "question": "How strongly is the amount of tree shade in a city associated with how hot the ground surface gets as seen from space?", "paper_ids": ["2608.13856"], "type": "manual", "tags": ["paraphrase"]}
+{"id": "m09", "question": "Is updating only a small set of low-rank weights as good as updating every weight when adapting a pretrained model of the Moon's surface to find craters?", "paper_ids": ["2609.13283"], "type": "manual", "tags": ["paraphrase"]}
+{"id": "m10", "question": "Do image features learned from Earth radar imagery help classify terrain on Saturn's largest moon?", "paper_ids": ["2610.07576"], "type": "manual", "tags": ["paraphrase"]}
+{"id": "m11", "question": "How can radar images be rebuilt from far fewer measurements by combining a generative noise-removal model with sparse-recovery style refinement steps?", "paper_ids": ["2610.06107"], "type": "manual", "tags": ["paraphrase"]}
+{"id": "m12", "question": "How can a classifier be adapted to a new scene of hundreds of narrow spectral bands when the original training data cannot be shared for privacy reasons?", "paper_ids": ["2608.05964"], "type": "manual", "tags": ["paraphrase"]}
+{"id": "m13", "question": "Does rearranging a one-dimensional reflectance curve of a leaf into a grid help neural networks predict its chemistry?", "paper_ids": ["2608.16661"], "type": "manual", "tags": ["paraphrase"]}
+{"id": "m14", "question": "Can an autonomous programming assistant that only sees held-out scores keep improving an overhead-imagery model from its own earlier outputs?", "paper_ids": ["2610.18845"], "type": "manual", "tags": ["paraphrase"]}
+{"id": "m15", "question": "Sentinel-1 SAR imagery", "paper_ids": ["2608.14366", "2608.04915", "2610.21993", "2610.06704"], "type": "manual", "tags": ["week1-failure", "bare-keyword"]}
+{"id": "m16", "question": "What deep learning approaches map flooded areas or surface water from SAR imagery?", "paper_ids": ["2607.28401", "2608.17398", "2610.06704", "2610.23377", "2607.14743"], "type": "manual", "tags": ["week1-failure", "multi-paper"]}
+{"id": "m17", "question": "Which metrics such as F1 and IoU are reported when evaluating change detection models on the LEVIR-CD dataset?", "paper_ids": ["2608.24263", "2608.21754", "2610.15813", "2608.28247", "2608.30817"], "type": "manual", "tags": ["week1-failure", "coverage"]}
+{"id": "m18", "question": "How do the patch size and replacement type used in perturbation-based explanations change the relevance maps for SAR flood detection?", "paper_ids": ["2607.14743"], "type": "manual", "tags": ["week1-failure", "misattribution"]}
+{"id": "u01", "question": "Who won the 2022 FIFA World Cup final?", "paper_ids": [], "type": "unanswerable"}
+{"id": "u02", "question": "How do I cook Rendang?", "paper_ids": [], "type": "unanswerable"}
+{"id": "u03", "question": "What accuracy does kelp forest canopy mapping from satellite imagery achieve?", "paper_ids": [], "type": "unanswerable"}
+{"id": "u04", "question": "How is desert locust swarm breeding habitat predicted from satellite data?", "paper_ids": [], "type": "unanswerable"}
+{"id": "u05", "question": "How are PM2.5 concentrations estimated from satellite aerosol optical depth?", "paper_ids": [], "type": "unanswerable"}

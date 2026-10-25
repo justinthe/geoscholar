@@ -87,3 +87,14 @@ class Index:
 
     def count(self):
         return self.client.count(self.collection, exact=True).count
+    
+    def all_payloads(self, batch=1000):
+        """Yield every chunk's payload (no vectors). Used to build the BM25 index."""
+        offset = None
+        while True:
+            points, offset = self.client.scroll(self.collection, limit=batch, offset=offset, with_payload=True, with_vectors=False)
+
+            for p in points:
+                yield p.payload
+            if offset is None:
+                break
