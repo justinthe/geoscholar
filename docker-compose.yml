@@ -1,17 +1,95 @@
+# GeoScholar: everything with one command.
+#   CPU only (works anywhere, slow LLM):  docker compose up -d --build
+#   NVIDIA GPU:  docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+# Settings come from .env (copy .env.example). UI: http://localhost:8501  API docs: http://localhost:8000/docs
+
 services:
   qdrant:
-    image: qdrant/qdrant:latest
+    image: qdrant/qdrant:latest            # pin a version tag for reproducible builds
     ports:
       - "6333:6333"
     volumes:
-      - ./qdrant_storage:/qdrant/storage    # vectors survive container restarts
+      - ./qdrant_storage:/qdrant/storage
     restart: unless-stopped
 
   grobid:
-    image: grobid/grobid:0.9.1-crf          # lightweight CPU-only image
+    image: grobid/grobid:0.9.1-crf          # only needed for ingestion
     ports:
       - "8070:8070"
     init: true
     ulimits:
       core: 0
     restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama           # downloaded models survive restarts
+    # no "ports": the API reaches it as http://ollama:11434 inside the Compose network,
+    # so it doesn't clash with an Ollama already running on your machine
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  ollama-init:                              # one-off job: pull the LLM if it isn't there yet
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama", "pull", "${GEOSCHOLAR_LLM:-llama3.1:8b}"]
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      GEOSCHOLAR_QDRANT_URL: http://qdrant:6333
+      GEOSCHOLAR_OLLAMA_URL: http://ollama:11434
+      GEOSCHOLAR_GROBID_URL: http://grobid:8070
+      GEOSCHOLAR_LLM: ${GEOSCHOLAR_LLM:-llama3.1:8b}
+      GEOSCHOLAR_RETRIEVAL_MODE: ${GEOSCHOLAR_RETRIEVAL_MODE:-hybrid}
+      GEOSCHOLAR_USE_RERANK: ${GEOSCHOLAR_USE_RERANK:-true}
+      GEOSCHOLAR_TOP_K: ${GEOSCHOLAR_TOP_K:-5}
+      GEOSCHOLAR_CONTEXT_ORDER: ${GEOSCHOLAR_CONTEXT_ORDER:-relevance}
+      GEOSCHOLAR_CHUNK_TOKENS: ${GEOSCHOLAR_CHUNK_TOKENS:-300}
+    volumes:
+      - ./data:/app/data                     # papers.db, PDFs, GROBID cache
+      - ./logs:/app/logs
+      - hf_cache:/root/.cache/huggingface    # embedding + reranker models, downloaded once
+    depends_on:
+      qdrant:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 600s                     # first start downloads the embedding and reranker models
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: .
+      dockerfile: docker/ui.Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      GEOSCHOLAR_API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+  hf_cache:

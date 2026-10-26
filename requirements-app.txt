@@ -1,0 +1,11 @@
+fastapi==0.162.0
+feedparser==6.0.14
+numpy==2.5.2
+pydantic==2.14.1
+pymupdf==2.0
+python-dotenv==1.2.4
+qdrant-client==1.20.0
+rank-bm25==0.2.2
+requests==2.34.2
+sentence-transformers==6.2.0
+uvicorn==0.54.0

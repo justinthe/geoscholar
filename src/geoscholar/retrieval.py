@@ -39,12 +39,15 @@ def bm25_text(payload):
 
 class BM25Index:
     """Keyword index over every chunk in a Qdrant collection, held in memory."""
-
+    
     def __init__(self, payloads):
         self.payloads = list(payloads)
-        self.bm25 = BM25Okapi([tokenize(bm25_text(p)) for p in self.payloads])
+        # an empty collection (fresh install, nothing ingested yet) gets no BM25 model
+        self.bm25 = BM25Okapi([tokenize(bm25_text(p)) for p in self.payloads]) if self.payloads else None
 
     def search(self, query, k=10, year_from=None):
+        if self.bm25 is None:
+            return []
         scores = self.bm25.get_scores(tokenize(query))
         order = np.argsort(-scores)
         hits = []
@@ -58,6 +61,25 @@ class BM25Index:
             if len(hits) == k:
                 break
         return hits
+
+    # def __init__(self, payloads):
+    #     self.payloads = list(payloads)
+    #     self.bm25 = BM25Okapi([tokenize(bm25_text(p)) for p in self.payloads])
+
+    # def search(self, query, k=10, year_from=None):
+    #     scores = self.bm25.get_scores(tokenize(query))
+    #     order = np.argsort(-scores)
+    #     hits = []
+    #     for i in order:
+    #         if scores[i] <= 0:                       # no query term appears: stop
+    #             break
+    #         p = self.payloads[i]
+    #         if year_from and (p.get("year") or 0) < year_from:
+    #             continue
+    #         hits.append((float(scores[i]), p))
+    #         if len(hits) == k:
+    #             break
+    #     return hits
 
 
 def rrf(result_lists, k=config.RRF_K, limit=None):

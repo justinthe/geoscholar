@@ -4,9 +4,9 @@ import re
 import time
 
 import feedparser
-import requests
-
+# import requests
 from geoscholar import config, db
+from geoscholar.http import polite_get  
 
 log = logging.getLogger(__name__)
 
@@ -42,17 +42,25 @@ def parse_entry(e, topic="combined"):
         "topic": topic,
     }
 
-
 def fetch_page(query, start, page_size=100):
-    resp = requests.get(
+    resp = polite_get(
         config.ARXIV_API,
         params={"search_query": query, "start": start, "max_results": page_size,
                 "sortBy": "submittedDate", "sortOrder": "descending"},
-        headers={"User-Agent": config.USER_AGENT},
         timeout=60,
     )
-    resp.raise_for_status()
     return feedparser.parse(resp.text).entries
+
+# def fetch_page(query, start, page_size=100):
+#     resp = requests.get(
+#         config.ARXIV_API,
+#         params={"search_query": query, "start": start, "max_results": page_size,
+#                 "sortBy": "submittedDate", "sortOrder": "descending"},
+#         headers={"User-Agent": config.USER_AGENT},
+#         timeout=60,
+#     )
+#     resp.raise_for_status()
+#     return feedparser.parse(resp.text).entries
 
 
 def fetch_metadata(conn, target=config.TARGET_PAPERS, page_size=100):
@@ -71,6 +79,7 @@ def fetch_metadata(conn, target=config.TARGET_PAPERS, page_size=100):
             if db.insert_paper(conn, parse_entry(e)):
                 added += 1
         log.info("start=%d: %d new papers so far", start, added)
-        start += page_size
+        # start += page_size
+        start += len(entries)  # some entries may be duplicates, so don't skip them
         time.sleep(config.ARXIV_DELAY_S)
     return added

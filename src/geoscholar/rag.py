@@ -4,7 +4,7 @@ import subprocess
 import time
 
 from geoscholar import config
-from geoscholar.llm import chat_full
+from geoscholar.llm import chat_full, chat_stream
 
 REFUSAL = "I could not find this in the indexed papers."
 
@@ -105,34 +105,35 @@ class RAGPipeline:
         self.max_context_tokens = max_context_tokens
         self.model = model
 
-    def retrieve(self, question):
+    def retrieve(self, question, year_from=None):
         """Returns (hits, retrieve_ms, rerank_ms)."""
         t0 = time.perf_counter()
         n = config.CANDIDATES if self.rerank else self.k
-        hits = self.retriever.search(question, k=n, mode=self.mode, rerank=False)
+        hits = self.retriever.search(question, k=n, mode=self.mode, rerank=False, year_from=year_from)
         t1 = time.perf_counter()
         if self.rerank:
             hits = self.retriever.reranker.rerank(question, hits, self.k)
         t2 = time.perf_counter()
         return hits[: self.k], (t1 - t0) * 1000, (t2 - t1) * 1000
 
-    def answer(self, question):
-        hits, retrieve_ms, rerank_ms = self.retrieve(question)
+    def prepare(self, question, year_from=None):
+        """Everything before the LLM call: retrieve, order, number the sources, build the prompt."""
+        hits, retrieve_ms, rerank_ms = self.retrieve(question, year_from)
         hits = order_sources(trim_to_budget(hits, self.max_context_tokens), self.order)
         sources = [{"n": i, "score": round(float(score), 4), **{key: p[key] for key in
                     ("paper_id", "title", "year", "section", "text", "chunk_id")}}
                    for i, (score, p) in enumerate(hits, start=1)]
+        return {"question": question, "sources": sources, "prompt": build_prompt(question, sources),
+                "retrieve_ms": retrieve_ms, "rerank_ms": rerank_ms}
 
-        t0 = time.perf_counter()
-        out = chat_full(build_prompt(question, sources), system=SYSTEM_PROMPT,
-                        temperature=0.1, model=self.model)
-        generate_ms = (time.perf_counter() - t0) * 1000
-
-        answer = out["content"].strip()
+    def finish(self, prep, answer, stats, generate_ms):
+        """Everything after the LLM call: parse citations, detect refusal, collect timings."""
+        answer = answer.strip()
+        sources = prep["sources"]
         cited = cited_numbers(answer)
         valid = {s["n"] for s in sources}
         return {
-            "question": question,
+            "question": prep["question"],
             "answer": answer,
             "answer_display": format_citations(answer, sources),
             "refused": is_refusal(answer),
@@ -140,12 +141,33 @@ class RAGPipeline:
             "invalid_citations": [n for n in cited if n not in valid],
             "sources": sources,
             "timings_ms": {
-                "retrieve": round(retrieve_ms, 1),
-                "rerank": round(rerank_ms, 1),
+                "retrieve": round(prep["retrieve_ms"], 1),
+                "rerank": round(prep["rerank_ms"], 1),
                 "generate": round(generate_ms, 1),
-                "total": round(retrieve_ms + rerank_ms + generate_ms, 1),
+                "total": round(prep["retrieve_ms"] + prep["rerank_ms"] + generate_ms, 1),
             },
-            "prompt_tokens": out["prompt_tokens"],
-            "output_tokens": out["output_tokens"],
-            "tokens_per_s": round(out["tokens_per_s"], 1) if out["tokens_per_s"] else None,
+            "prompt_tokens": stats.get("prompt_tokens"),
+            "output_tokens": stats.get("output_tokens"),
+            "tokens_per_s": round(stats["tokens_per_s"], 1) if stats.get("tokens_per_s") else None,
         }
+
+    def answer(self, question, year_from=None):
+        prep = self.prepare(question, year_from)
+        t0 = time.perf_counter()
+        out = chat_full(prep["prompt"], system=SYSTEM_PROMPT, temperature=0.1, model=self.model)
+        return self.finish(prep, out["content"], out, (time.perf_counter() - t0) * 1000)
+
+    def stream(self, question, year_from=None):
+        """Yield ("sources", [...]) first, then ("token", text) pieces, then ("done", result)."""
+        prep = self.prepare(question, year_from)
+        yield "sources", prep["sources"]
+        t0 = time.perf_counter()
+        parts, stats = [], {}
+        for kind, value in chat_stream(prep["prompt"], system=SYSTEM_PROMPT,
+                                       temperature=0.1, model=self.model):
+            if kind == "token":
+                parts.append(value)
+                yield "token", value
+            else:
+                stats = value
+        yield "done", self.finish(prep, "".join(parts), stats, (time.perf_counter() - t0) * 1000)

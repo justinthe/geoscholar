@@ -1,0 +1,10 @@
+.git
+.venv
+.env
+data
+logs
+qdrant_storage
+eval/results
+notebooks
+**/__pycache__
+*.egg-info

@@ -10,3 +10,4 @@ logs/
 eval/questions_draft.jsonl
 eval/results/answers_*.jsonl
 eval/results/judged_*.jsonl
+.env

@@ -2,9 +2,10 @@
 import logging
 import time
 
-import requests
+# import requests
 
 from geoscholar import config, db
+from geoscholar.http import polite_get
 
 log = logging.getLogger(__name__)
 
@@ -24,8 +25,9 @@ def download_pdfs(conn, limit=None):
             db.set_status(conn, p["id"], "downloaded")
             continue
         try:
-            resp = requests.get(p["pdf_url"], headers={"User-Agent": config.USER_AGENT}, timeout=120)
-            resp.raise_for_status()
+            # resp = requests.get(p["pdf_url"], headers={"User-Agent": config.USER_AGENT}, timeout=120)
+            # resp.raise_for_status()
+            resp = polite_get(p["pdf_url"], timeout=120)
             if not resp.content.startswith(b"%PDF"):
                 raise ValueError("response is not a PDF")
             tmp = path.with_suffix(".part")                     # write, then rename:

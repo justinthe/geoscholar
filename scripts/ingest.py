@@ -12,10 +12,7 @@ import logging
 import sys
 
 from geoscholar import config, db
-from geoscholar.ingest.chunk import chunk_paper
-from geoscholar.ingest.download import download_pdfs, pdf_path
-from geoscholar.ingest.fetch import fetch_metadata
-from geoscholar.ingest.parse import parse_pdf
+from geoscholar.ingest import pipeline
 
 
 def setup_logging():
@@ -28,28 +25,6 @@ def setup_logging():
     )
     for noisy in ("httpx", "urllib3", "sentence_transformers"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
-
-
-def run_index(conn, limit=None, use_grobid=True):
-    from geoscholar.index import Embedder, Index     # imported here: loads torch, slow
-
-    log = logging.getLogger("index")
-    embedder = Embedder()
-    index = Index(embedder)
-    index.ensure_collection()
-    todo = db.papers_with_status(conn, "downloaded")[:limit]
-    log.info("%d papers to parse and index into '%s'", len(todo), index.collection)
-    for i, p in enumerate(todo, 1):
-        try:
-            sections, parser = parse_pdf(pdf_path(p["id"]), p["id"], use_grobid=use_grobid)
-            chunks = chunk_paper(p, sections, count=embedder.count_tokens)
-            n = index.replace_paper(p["id"], chunks)
-            db.set_status(conn, p["id"], "indexed", parser=parser, n_chunks=n)
-        except Exception as exc:
-            log.warning("index failed for %s: %s", p["id"], exc)
-            db.set_status(conn, p["id"], "failed", error=f"index: {exc}")
-        if i % 10 == 0:
-            log.info("indexed %d/%d (collection now has %d chunks)", i, len(todo), index.count())
 
 
 def main():
@@ -73,12 +48,9 @@ def main():
         conn.execute("UPDATE papers SET status = 'downloaded' WHERE status = 'indexed'")
         conn.commit()
 
-    if args.stage in ("fetch", "all"):
-        fetch_metadata(conn, target=args.limit or config.TARGET_PAPERS)
-    if args.stage in ("download", "all"):
-        download_pdfs(conn, limit=args.limit)
-    if args.stage in ("index", "all"):
-        run_index(conn, limit=args.limit, use_grobid=not args.no_grobid)
+    if args.stage:
+        stages = ("fetch", "download", "index") if args.stage == "all" else (args.stage,)
+        pipeline.run(conn, stages=stages, limit=args.limit, use_grobid=not args.no_grobid)
 
     print("Status:", db.status_counts(conn))
 
