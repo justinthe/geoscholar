@@ -1,0 +1,12 @@
+{{- if .Values.dashboard.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "geoscholar.fullname" . }}-dashboard
+  labels:
+    {{- include "geoscholar.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  geoscholar.json: |-
+{{ .Files.Get "dashboards/geoscholar.json" | indent 4 }}
+{{- end }}

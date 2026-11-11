@@ -76,4 +76,5 @@ TOP_K = env_int("TOP_K", 5)                             # passages given to the 
 CONTEXT_ORDER = env_str("CONTEXT_ORDER", "relevance")   # "relevance" or "sandwich"
 MAX_CONTEXT_TOKENS = env_int("MAX_CONTEXT_TOKENS", 3000)
 LLM_NUM_CTX = env_int("LLM_NUM_CTX", 8192)  # Ollama context window; too small silently cuts the prompt
+ENABLE_INGEST = env_bool("ENABLE_INGEST", True)          # /ingest endpoints on/off
 JUDGE_MODEL = env_str("JUDGE", LLM_MODEL)

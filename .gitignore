@@ -11,3 +11,19 @@ eval/questions_draft.jsonl
 eval/results/answers_*.jsonl
 eval/results/judged_*.jsonl
 .env
+
+# OpenTofu / k8s (keep .terraform.lock.hcl committed)
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+!*.tfvars.example
+*.kubeconfig
+kubeconfig*
+.state/
+data/snapshots/
+*.snapshot
+eval/results/load_*.json
+.recall/
+eval/.recall/
+.vscode/

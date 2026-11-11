@@ -1,0 +1,2 @@
+UI:  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "geoscholar.fullname" . }}-ui 8501:{{ .Values.ui.service.port }}
+API: kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "geoscholar.fullname" . }}-api 8000:{{ .Values.api.service.port }}
