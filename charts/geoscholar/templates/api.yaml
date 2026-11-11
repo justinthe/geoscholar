@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "geoscholar.fullname" . }}-api
+  labels: {{- include "geoscholar.labels" . | nindent 4 }}
+spec:
+  # 1 replica + Recreate: in-memory job state and BM25 index live in the process,
+  # and the RWO PVC (HF cache) cannot be mounted by two pods during a rolling update.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {{- include "geoscholar.selector" (dict "root" . "component" "api") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "geoscholar.selector" (dict "root" . "component" "api") | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      # No securityContext: the image runs as root (HF cache is /root/.cache/huggingface).
+      # Add a non-root user to docker/api.Dockerfile first, then set runAsNonRoot here.
+      containers:
+        - name: api
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          ports:
+            - {name: http, containerPort: 8000}
+          envFrom:
+            - configMapRef:
+                name: {{ include "geoscholar.fullname" . }}-api
+          startupProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+            failureThreshold: 60   # up to 10 min for first model download
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+          readinessProbe:
+            httpGet: {path: /ready, port: http}
+            timeoutSeconds: 5      # /ready's Ollama check has a 3 s timeout
+            failureThreshold: 3
+          resources: {{- toYaml .Values.api.resources | nindent 12 }}
+          volumeMounts:
+            - {name: hf-cache, mountPath: /root/.cache/huggingface}
+      volumes:
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: {{ include "geoscholar.fullname" . }}-hf-cache
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "geoscholar.fullname" . }}-hf-cache
+  labels: {{- include "geoscholar.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with .Values.api.hfCache.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.api.hfCache.size }}
+---
+# ClusterIP only: never LoadBalancer. The API has no auth; reach it via port-forward
+# or an authenticated ingress added deliberately.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "geoscholar.fullname" . }}-api
+  labels:
+    {{- include "geoscholar.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  type: ClusterIP
+  selector: {{- include "geoscholar.selector" (dict "root" . "component" "api") | nindent 4 }}
+  ports:
+    - {name: http, port: {{ .Values.api.service.port }}, targetPort: http}

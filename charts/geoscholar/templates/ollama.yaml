@@ -1,0 +1,71 @@
+{{- if .Values.ollama.enabled }}
+{{- $n := printf "%s-ollama" (include "geoscholar.fullname" .) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $n }}
+  labels: {{- include "geoscholar.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}   # RWO PVC
+  selector:
+    matchLabels: {{- include "geoscholar.selector" (dict "root" . "component" "ollama") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "geoscholar.selector" (dict "root" . "component" "ollama") | nindent 8 }}
+    spec:
+      containers:
+        - name: ollama
+          image: {{ .Values.ollama.image }}
+          ports: [{name: http, containerPort: 11434}]
+          readinessProbe:
+            tcpSocket: {port: http}
+          resources: {{- toYaml .Values.ollama.resources | nindent 12 }}
+          volumeMounts: [{name: data, mountPath: /root/.ollama}]
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: {{ $n }}}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $n }}
+  labels: {{- include "geoscholar.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with .Values.ollama.storage.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests: {storage: {{ .Values.ollama.storage.size }}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $n }}
+  labels: {{- include "geoscholar.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: {{- include "geoscholar.selector" (dict "root" . "component" "ollama") | nindent 4 }}
+  ports: [{name: http, port: 11434, targetPort: http}]
+---
+# Pulls the model over the Service; retries until Ollama is up.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $n }}-pull
+  labels: {{- include "geoscholar.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: pull
+          image: {{ .Values.ollama.image }}
+          env: [{name: OLLAMA_HOST, value: "http://{{ $n }}:11434"}]
+          command: ["ollama", "pull", {{ .Values.ollama.model | quote }}]
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 512Mi}
+{{- end }}

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "geoscholar.fullname" . }}-ui
+  labels: {{- include "geoscholar.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.ui.replicas }}
+  selector:
+    matchLabels: {{- include "geoscholar.selector" (dict "root" . "component" "ui") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "geoscholar.selector" (dict "root" . "component" "ui") | nindent 8 }}
+    spec:
+      # Image runs as root (no USER in ui.Dockerfile); securityContext left unset.
+      containers:
+        - name: ui
+          image: "{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag }}"
+          imagePullPolicy: {{ .Values.ui.image.pullPolicy }}
+          ports:
+            - {name: http, containerPort: 8501}
+          env:
+            - name: GEOSCHOLAR_API_URL
+              value: http://{{ include "geoscholar.fullname" . }}-api:{{ .Values.api.service.port }}
+          readinessProbe:
+            httpGet: {path: /_stcore/health, port: http}   # Streamlit built-in
+          livenessProbe:
+            httpGet: {path: /_stcore/health, port: http}
+          resources: {{- toYaml .Values.ui.resources | nindent 12 }}
+---
+# ClusterIP only: never LoadBalancer.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "geoscholar.fullname" . }}-ui
+  labels:
+    {{- include "geoscholar.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+spec:
+  type: ClusterIP
+  selector: {{- include "geoscholar.selector" (dict "root" . "component" "ui") | nindent 4 }}
+  ports:
+    - {name: http, port: {{ .Values.ui.service.port }}, targetPort: http}

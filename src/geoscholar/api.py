@@ -4,6 +4,8 @@
 
 Endpoints
     GET  /health              is the service ready? Qdrant and Ollama status, chunk count
+    GET  /ready               200 only if Qdrant and Ollama are both reachable, else 503
+    GET  /metrics             Prometheus metrics
     POST /query               answer a question (whole answer at once, JSON)
     POST /query/stream        answer a question as Server-Sent Events: sources, tokens, done
     POST /ingest              start a background ingestion job (fetch, download, index)
@@ -17,14 +19,37 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.responses import JSONResponse, StreamingResponse
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel, Field
 
 from geoscholar import config, db
 from geoscholar.llm import ollama_ok
 
 log = logging.getLogger("api")
+
+# ---------- metrics (default registry) ----------
+
+BUCKETS = (0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 30, 60, 120)
+HTTP_SECONDS = Histogram("geoscholar_http_request_duration_seconds", "HTTP request duration",
+                         ["method", "route", "status"], buckets=BUCKETS)
+STAGE_SECONDS = Histogram("geoscholar_stage_duration_seconds", "RAG stage duration",
+                          ["stage"], buckets=BUCKETS)
+QUERIES = Counter("geoscholar_queries_total", "Queries by outcome", ["outcome"])
+TOKENS = Counter("geoscholar_tokens_total", "LLM tokens", ["kind"])
+
+
+def record_result(result):
+    """Feed stage timings, token counts and outcome from a finished rag result."""
+    for stage in ("retrieve", "rerank", "generate", "total"):
+        ms = result.get("timings_ms", {}).get(stage)
+        if ms is not None:
+            STAGE_SECONDS.labels(stage).observe(ms / 1000)
+    for kind, key in (("prompt", "prompt_tokens"), ("completion", "output_tokens")):
+        if result.get(key) is not None:
+            TOKENS.labels(kind).inc(result[key])
+    QUERIES.labels("refused" if result.get("refused") else "answered").inc()
 
 
 # ---------- request and response shapes (these also generate the /docs page) ----------
@@ -112,6 +137,36 @@ def create_app(pipeline=None):
     app = FastAPI(title="GeoScholar", version="0.1.0", lifespan=lifespan,
                   description="Question answering over remote sensing papers, with citations.")
 
+    @app.middleware("http")
+    async def time_requests(request: Request, call_next):
+        if request.url.path == "/query/stream":      # observed on the final SSE event instead
+            return await call_next(request)
+        t0, status = time.perf_counter(), 500
+        try:
+            response = await call_next(request)
+            status = response.status_code
+            return response
+        finally:
+            route = getattr(request.scope.get("route"), "path", "unmatched")
+            HTTP_SECONDS.labels(request.method, route, status).observe(time.perf_counter() - t0)
+
+    @app.get("/metrics")
+    def metrics():
+        return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+    @app.get("/ready")
+    def ready():
+        try:
+            app.state.pipeline.retriever.index.count()
+            qdrant = True
+        except Exception:
+            qdrant = False
+        ollama = ollama_ok()
+        if qdrant and ollama:
+            return {"status": "ready"}
+        failed = [n for n, ok in (("qdrant", qdrant), ("ollama", ollama)) if not ok]
+        return JSONResponse(status_code=503, content={"status": "not ready", "failed": failed})
+
     @app.get("/health")
     def health():
         p = app.state.pipeline
@@ -129,13 +184,17 @@ def create_app(pipeline=None):
     @app.post("/query", response_model=QueryResponse)
     def query(req: QueryRequest):
         try:
-            return with_urls(app.state.pipeline.answer(req.question, year_from=req.year_from))
+            result = with_urls(app.state.pipeline.answer(req.question, year_from=req.year_from))
         except RuntimeError as exc:                     # e.g. Ollama down or model missing
+            QUERIES.labels("error").inc()
             raise HTTPException(status_code=503, detail=str(exc))
+        record_result(result)
+        return result
 
     @app.post("/query/stream")
     def query_stream(req: QueryRequest):
         def events():
+            t0 = time.perf_counter()
             try:
                 for kind, value in app.state.pipeline.stream(req.question, year_from=req.year_from):
                     if kind == "sources":
@@ -144,14 +203,19 @@ def create_app(pipeline=None):
                         data = {"text": value}
                     else:
                         data = with_urls(value)
+                        record_result(value)
+                        HTTP_SECONDS.labels("POST", "/query/stream", 200).observe(time.perf_counter() - t0)
                     yield f"event: {kind}\ndata: {json.dumps(data)}\n\n"
             except Exception as exc:
+                QUERIES.labels("error").inc()
                 yield f"event: error\ndata: {json.dumps({'detail': str(exc)})}\n\n"
 
         return StreamingResponse(events(), media_type="text/event-stream")
 
     @app.post("/ingest", status_code=202)
     def start_ingest(req: IngestRequest):
+        if not config.ENABLE_INGEST:
+            raise HTTPException(status_code=404, detail="Not Found")
         with app.state.job_lock:
             if any(j["status"] == "running" for j in app.state.jobs.values()):
                 raise HTTPException(status_code=409, detail="An ingestion job is already running")
@@ -164,6 +228,8 @@ def create_app(pipeline=None):
 
     @app.get("/ingest/{job_id}")
     def ingest_status(job_id: str):
+        if not config.ENABLE_INGEST:
+            raise HTTPException(status_code=404, detail="Not Found")
         job = app.state.jobs.get(job_id)
         if not job:
             raise HTTPException(status_code=404, detail="Unknown job")

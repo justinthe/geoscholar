@@ -8,3 +8,9 @@ eval/results
 notebooks
 **/__pycache__
 *.egg-info
+.recall
+**/.recall
+.pytest_cache
+.vscode
+.cache
+models

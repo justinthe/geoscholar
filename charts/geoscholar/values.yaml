@@ -1,0 +1,60 @@
+# Image tags are never derived from the chart version. CI overrides both with
+# --set api.image.tag=sha-<git sha> --set ui.image.tag=sha-<git sha>.
+api:
+  image:
+    repository: ghcr.io/OWNER/geoscholar-api   # placeholder: set to the real registry path
+    tag: latest                                # placeholder, CI sets sha-<sha>
+    pullPolicy: IfNotPresent
+  # replicas fixed at 1 in the template: in-memory ingest job state and BM25 index,
+  # plus an RWO PVC for the HF cache. Do not scale without redesign.
+  resources:
+    requests: {cpu: 500m, memory: 2Gi}
+    limits: {memory: 4Gi}
+  service:
+    port: 8000
+  hfCache:
+    size: 5Gi
+    storageClass: ""        # empty = cluster default
+
+ui:
+  image:
+    repository: ghcr.io/OWNER/geoscholar-ui
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 512Mi}
+  service:
+    port: 8501
+
+# Every entry becomes an env var in the API ConfigMap.
+config:
+  GEOSCHOLAR_QDRANT_URL: http://qdrant:6333
+  GEOSCHOLAR_GROBID_URL: http://grobid:8070
+  GEOSCHOLAR_LLM: qwen2.5:0.5b
+  GEOSCHOLAR_RETRIEVAL_MODE: hybrid
+  GEOSCHOLAR_USE_RERANK: "true"
+  GEOSCHOLAR_TOP_K: "5"
+  GEOSCHOLAR_CONTEXT_ORDER: relevance
+  GEOSCHOLAR_CHUNK_TOKENS: "300"
+  # Ingest needs GROBID and data/, which the cluster does not have.
+  GEOSCHOLAR_ENABLE_INGEST: "false"
+
+ollama:
+  url: http://ollama:11434   # used when ollama.enabled=false (external Ollama)
+  enabled: false             # true deploys a small in-cluster Ollama
+  image: ollama/ollama:0.32.1
+  model: qwen2.5:0.5b        # pulled by the Job
+  storage: {size: 5Gi, storageClass: ""}
+  resources:
+    requests: {cpu: 500m, memory: 1Gi}
+    limits: {memory: 3Gi}
+
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  labels: {}                 # e.g. release: kube-prometheus-stack
+
+dashboard:
+  enabled: false

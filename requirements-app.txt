@@ -1,6 +1,7 @@
 fastapi==0.162.0
 feedparser==6.0.14
 numpy==2.5.2
+prometheus-client==0.26.0
 pydantic==2.14.1
 pymupdf==2.0
 python-dotenv==1.2.4
